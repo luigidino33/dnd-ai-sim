@@ -1,0 +1,42 @@
+{
+  "goblin": {
+    "name": "Goblin",
+    "cr": "1/4",
+    "ac": 15,
+    "hp": 7,
+    "speed": "30 ft.",
+    "rules": "Nimble Escape: can Disengage or Hide as a bonus action. Scimitar: +4 to hit, 1d6+2 slashing. Shortbow: +4 to hit, 1d6+2 piercing, range 80/320."
+  },
+  "wolf": {
+    "name": "Wolf",
+    "cr": "1/4",
+    "ac": 13,
+    "hp": 11,
+    "speed": "40 ft.",
+    "rules": "Pack Tactics: advantage on attack rolls if an ally is within 5ft of the target. Bite: +4 to hit, 2d4+2 piercing; target must succeed on a DC 11 Strength save or be knocked prone."
+  },
+  "skeleton": {
+    "name": "Skeleton",
+    "cr": "1/4",
+    "ac": 13,
+    "hp": 13,
+    "speed": "30 ft.",
+    "rules": "Vulnerable to bludgeoning damage, immune to poison damage/condition. Shortsword: +4 to hit, 1d6+2 piercing. Shortbow: +4 to hit, 1d6+2 piercing, range 80/320."
+  },
+  "banditThug": {
+    "name": "Bandit",
+    "cr": "1/8",
+    "ac": 12,
+    "hp": 11,
+    "speed": "30 ft.",
+    "rules": "Scimitar: +3 to hit, 1d6+1 slashing. Light Crossbow: +3 to hit, 1d8+1 piercing, range 80/320."
+  },
+  "direWolf": {
+    "name": "Dire Wolf",
+    "cr": "1",
+    "ac": 14,
+    "hp": 37,
+    "speed": "50 ft.",
+    "rules": "Pack Tactics: advantage on attack rolls if an ally is within 5ft of the target. Bite: +5 to hit, 2d6+3 piercing; target must succeed on a DC 13 Strength save or be knocked prone."
+  }
+}

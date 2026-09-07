@@ -1,0 +1,20 @@
+{
+  "acrobatics": { "ability": "dexterity", "rules": "Stay on your feet in a tricky situation, or perform an acrobatic stunt (tumbling, flips, escaping a grapple)." },
+  "animalHandling": { "ability": "wisdom", "rules": "Calm a domesticated animal, keep a mount from bolting, read an animal's intentions." },
+  "arcana": { "ability": "intelligence", "rules": "Recall lore about spells, magic items, planes, and magical traditions." },
+  "athletics": { "ability": "strength", "rules": "Climbing, jumping, swimming, and grappling/shoving in difficult circumstances." },
+  "deception": { "ability": "charisma", "rules": "Convincingly hide the truth, verbally or through actions." },
+  "history": { "ability": "intelligence", "rules": "Recall lore about historical events, legends, wars, and civilizations." },
+  "insight": { "ability": "wisdom", "rules": "Determine the true intentions of a creature, e.g. detecting a lie." },
+  "intimidation": { "ability": "charisma", "rules": "Influence someone through threats, hostile actions, or physical presence." },
+  "investigation": { "ability": "intelligence", "rules": "Deduce facts by finding and interpreting clues, or figure out how something works." },
+  "medicine": { "ability": "wisdom", "rules": "Diagnose an illness, or determine how a creature died, or stabilize a dying creature (though stabilizing itself doesn't require a check)." },
+  "nature": { "ability": "intelligence", "rules": "Recall lore about terrain, plants, animals, and weather." },
+  "perception": { "ability": "wisdom", "rules": "Spot, hear, or otherwise detect the presence of something." },
+  "performance": { "ability": "charisma", "rules": "Delight an audience with music, dance, acting, storytelling, or another form of entertainment." },
+  "persuasion": { "ability": "charisma", "rules": "Influence someone with tact, social graces, or good nature." },
+  "religion": { "ability": "intelligence", "rules": "Recall lore about deities, rites, prayers, and religious hierarchies." },
+  "sleightOfHand": { "ability": "dexterity", "rules": "Plant something on someone, conceal an object, or perform an act of legerdemain." },
+  "stealth": { "ability": "dexterity", "rules": "Conceal yourself from enemies, slip past guards, or sneak up on someone." },
+  "survival": { "ability": "wisdom", "rules": "Follow tracks, hunt, navigate the wilderness, identify signs of nearby creatures, predict weather." }
+}

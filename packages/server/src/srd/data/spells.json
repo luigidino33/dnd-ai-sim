@@ -1,0 +1,50 @@
+{
+  "fireBolt": {
+    "name": "Fire Bolt",
+    "level": 0,
+    "school": "evocation",
+    "rules": "Ranged spell attack, 120ft. Hit: 1d10 fire damage (scales with character level: 2d10 at 5th, 3d10 at 11th, 4d10 at 17th)."
+  },
+  "sacredFlame": {
+    "name": "Sacred Flame",
+    "level": 0,
+    "school": "evocation",
+    "rules": "Target makes a Dexterity save or takes 1d8 radiant damage. No cover benefit against this spell. Scales like Fire Bolt."
+  },
+  "guidance": {
+    "name": "Guidance",
+    "level": 0,
+    "school": "divination",
+    "rules": "Touch a willing creature; it can add 1d4 to one ability check of its choice before the spell ends (concentration, 1 minute)."
+  },
+  "magicMissile": {
+    "name": "Magic Missile",
+    "level": 1,
+    "school": "evocation",
+    "rules": "Three darts of force, each dealing 1d4+1 damage, automatically hit (no attack roll or save). One extra dart per slot level above 1st."
+  },
+  "cureWounds": {
+    "name": "Cure Wounds",
+    "level": 1,
+    "school": "evocation",
+    "rules": "Touch a creature; it regains 1d8 + spellcasting ability modifier HP. +1d8 per slot level above 1st."
+  },
+  "shieldSpell": {
+    "name": "Shield",
+    "level": 1,
+    "school": "abjuration",
+    "rules": "Reaction when hit by an attack or targeted by Magic Missile: +5 AC until the start of your next turn (retroactively can turn a hit into a miss), and immune to Magic Missile."
+  },
+  "healingWord": {
+    "name": "Healing Word",
+    "level": 1,
+    "school": "evocation",
+    "rules": "Bonus action, 60ft range. Target regains 1d4 + spellcasting ability modifier HP. +1d4 per slot level above 1st."
+  },
+  "burningHands": {
+    "name": "Burning Hands",
+    "level": 1,
+    "school": "evocation",
+    "rules": "15-foot cone. Each creature makes a Dexterity save: 3d6 fire damage on a failure, half as much on a success."
+  }
+}

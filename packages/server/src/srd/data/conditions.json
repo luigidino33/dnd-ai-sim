@@ -1,0 +1,62 @@
+{
+  "blinded": {
+    "name": "Blinded",
+    "rules": "Can't see and automatically fails checks that require sight. Attack rolls against the creature have advantage; the creature's attack rolls have disadvantage."
+  },
+  "charmed": {
+    "name": "Charmed",
+    "rules": "Can't attack the charmer or target them with harmful abilities/spells. The charmer has advantage on social ability checks against the creature."
+  },
+  "deafened": {
+    "name": "Deafened",
+    "rules": "Can't hear and automatically fails checks that require hearing."
+  },
+  "frightened": {
+    "name": "Frightened",
+    "rules": "Disadvantage on ability checks and attack rolls while the source of fear is in line of sight. Can't willingly move closer to the source of fear."
+  },
+  "grappled": {
+    "name": "Grappled",
+    "rules": "Speed becomes 0. Ends if the grappler is incapacitated or the creature is moved out of the grappler's reach."
+  },
+  "incapacitated": {
+    "name": "Incapacitated",
+    "rules": "Can't take actions or reactions."
+  },
+  "invisible": {
+    "name": "Invisible",
+    "rules": "Impossible to see without magic/special senses; heavily obscured for hiding purposes. Attack rolls against the creature have disadvantage; its attack rolls have advantage."
+  },
+  "paralyzed": {
+    "name": "Paralyzed",
+    "rules": "Incapacitated and can't move or speak. Automatically fails Strength and Dexterity saves. Attacks against it have advantage, and any hit from within 5 feet is a critical hit."
+  },
+  "petrified": {
+    "name": "Petrified",
+    "rules": "Transformed to stone; incapacitated, can't move or speak, unaware of surroundings. Resistance to all damage, immune to poison and disease. Attacks against it have advantage."
+  },
+  "poisoned": {
+    "name": "Poisoned",
+    "rules": "Disadvantage on attack rolls and ability checks."
+  },
+  "prone": {
+    "name": "Prone",
+    "rules": "Can only crawl or stand up (using half movement) as movement. Disadvantage on attack rolls. Melee attacks against it have advantage; ranged attacks against it have disadvantage."
+  },
+  "restrained": {
+    "name": "Restrained",
+    "rules": "Speed becomes 0. Attack rolls against it have advantage; its attack rolls have disadvantage. Disadvantage on Dexterity saving throws."
+  },
+  "stunned": {
+    "name": "Stunned",
+    "rules": "Incapacitated, can't move, and can speak only falteringly. Automatically fails Strength and Dexterity saves. Attacks against it have advantage."
+  },
+  "unconscious": {
+    "name": "Unconscious",
+    "rules": "Incapacitated, can't move or speak, unaware of surroundings, drops what it's holding, falls prone. Automatically fails Strength and Dexterity saves. Attacks against it have advantage, and any hit from within 5 feet is a critical hit."
+  },
+  "exhaustion": {
+    "name": "Exhaustion",
+    "rules": "Tracked in levels 1-6, each level worsening effects (disadvantage on checks, speed halved, disadvantage on attacks/saves, HP max halved, speed reduced to 0, death). A long rest reduces exhaustion by 1 level if food/drink is consumed."
+  }
+}

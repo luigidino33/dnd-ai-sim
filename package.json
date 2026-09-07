@@ -4,19 +4,14 @@
   "version": "0.1.0",
   "workspaces": [
     "packages/shared",
-    "packages/server",
     "packages/web"
   ],
   "scripts": {
-    "dev": "concurrently -n server,web -c blue,green \"npm run dev --workspace=packages/server\" \"npm run dev --workspace=packages/web\"",
-    "dev:server": "npm run dev --workspace=packages/server",
-    "dev:web": "npm run dev --workspace=packages/web",
-    "build": "npm run build --workspace=packages/shared && npm run build --workspace=packages/server && npm run build --workspace=packages/web",
+    "build": "npm run build --workspace=packages/shared && npm run build --workspace=packages/web",
     "test": "npm run test --workspace=packages/shared",
-    "seed": "npm run seed --workspace=packages/server"
+    "seed": "npm run seed --workspace=packages/web"
   },
   "devDependencies": {
-    "concurrently": "^9.0.1",
     "typescript": "^5.6.3"
   }
 }

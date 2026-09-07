@@ -1,8 +1,22 @@
 import { useCallback, useEffect, useState } from "react";
-import type { Character, RulingResult, Session, SessionEvent } from "@dnd-ai-sim/shared";
+import {
+  rowToCharacter,
+  rowToEvent,
+  rowToSession,
+  type Character,
+  type Session,
+  type SessionEvent,
+} from "@dnd-ai-sim/shared";
 import { useAuth } from "./AuthContext";
-import { getSocket } from "../api/socket";
+import { apiFetch } from "../api/http";
+import { getSupabaseClient } from "../api/realtime";
 
+/**
+ * Live session state comes from two sources: an initial REST fetch, then
+ * Supabase Realtime (`postgres_changes`) pushes every subsequent DB write --
+ * there's no explicit "broadcast" step in the API handlers, the UPDATE/INSERT
+ * itself is what reaches every subscribed client.
+ */
 export function useLiveSession(sessionId: string | null) {
   const { auth } = useAuth();
   const [session, setSession] = useState<Session | null>(null);
@@ -13,103 +27,120 @@ export function useLiveSession(sessionId: string | null) {
 
   useEffect(() => {
     if (!sessionId || !auth) return;
-    const socket = getSocket(auth.token);
-
-    function join() {
-      socket.emit("session:join", { sessionId }, (res: any) => {
-        if (res.ok) {
-          setSession(res.session);
-          setEvents(res.events);
-          setCharacters(res.characters);
-          setError(null);
-        } else {
-          setError(res.error);
-        }
-      });
-    }
-
-    function onConnect() {
-      setConnected(true);
-      join();
-    }
-    function onDisconnect() {
-      setConnected(false);
-    }
-    function onSessionUpdate(s: Session) {
-      setSession(s);
-    }
-    function onSessionEvent(e: SessionEvent) {
-      setEvents((prev) => [...prev, e]);
-    }
-    function onCharacterUpdate(c: Character) {
-      setCharacters((prev) => prev.map((existing) => (String((existing as any)._id ?? existing.id) === String((c as any)._id ?? c.id) ? c : existing)));
-    }
-
-    socket.on("connect", onConnect);
-    socket.on("disconnect", onDisconnect);
-    socket.on("session:update", onSessionUpdate);
-    socket.on("session:event", onSessionEvent);
-    socket.on("character:update", onCharacterUpdate);
-
-    if (socket.connected) onConnect();
-
+    let cancelled = false;
+    Promise.all([
+      apiFetch<Session>(`/api/sessions/${sessionId}`, { token: auth.token }),
+      apiFetch<SessionEvent[]>(`/api/sessions/${sessionId}/events`, { token: auth.token }),
+      apiFetch<Character[]>(`/api/characters/campaign/${auth.campaign.id}`, { token: auth.token }),
+    ])
+      .then(([s, e, c]) => {
+        if (cancelled) return;
+        setSession(s);
+        setEvents(e);
+        setCharacters(c);
+      })
+      .catch((err) => !cancelled && setError(err instanceof Error ? err.message : "Failed to load session"));
     return () => {
-      socket.off("connect", onConnect);
-      socket.off("disconnect", onDisconnect);
-      socket.off("session:update", onSessionUpdate);
-      socket.off("session:event", onSessionEvent);
-      socket.off("character:update", onCharacterUpdate);
+      cancelled = true;
     };
   }, [sessionId, auth]);
 
-  const claimCharacter = useCallback(
-    (characterId: string) =>
-      new Promise<void>((resolve, reject) => {
-        if (!auth) return reject(new Error("Not authenticated"));
-        getSocket(auth.token).emit("character:claim", { characterId }, (res: any) => {
-          if (res.ok) resolve();
-          else reject(new Error(res.error));
-        });
-      }),
-    [auth]
-  );
+  useEffect(() => {
+    if (!sessionId || !auth) return;
+    const supabase = getSupabaseClient();
+    const channel = supabase
+      .channel(`session-data:${sessionId}`)
+      .on(
+        "postgres_changes",
+        { event: "UPDATE", schema: "public", table: "sessions", filter: `id=eq.${sessionId}` },
+        (payload) => setSession(rowToSession(payload.new))
+      )
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "event_logs", filter: `session_id=eq.${sessionId}` },
+        (payload) => setEvents((prev) => [...prev, rowToEvent(payload.new)])
+      )
+      .on(
+        "postgres_changes",
+        { event: "UPDATE", schema: "public", table: "characters", filter: `campaign_id=eq.${auth.campaign.id}` },
+        (payload) => {
+          const updated = rowToCharacter(payload.new);
+          setCharacters((prev) => prev.map((c) => (c.id === updated.id ? updated : c)));
+        }
+      )
+      .subscribe((status) => setConnected(status === "SUBSCRIBED"));
+
+    return () => {
+      void supabase.removeChannel(channel);
+    };
+  }, [sessionId, auth]);
+
+  // Presence (requirement 6 graceful degradation): every client tracks itself
+  // on a presence channel and watches for the Admin's entry disappearing --
+  // there's no long-lived server process left to notice a socket drop, so any
+  // connected client that observes the change reports it (idempotent server-side).
+  useEffect(() => {
+    if (!sessionId || !auth) return;
+    const supabase = getSupabaseClient();
+    const presenceChannel = supabase.channel(`presence:${sessionId}`, {
+      config: { presence: { key: auth.user.id } },
+    });
+    let adminWasPresent = false;
+
+    function checkAdminPresence() {
+      const state = presenceChannel.presenceState();
+      const adminPresent = Object.values(state).some((entries) =>
+        (entries as any[]).some((e) => e.isAdmin)
+      );
+      if (adminPresent !== adminWasPresent) {
+        adminWasPresent = adminPresent;
+        apiFetch("/api/presence/report", {
+          method: "POST",
+          token: auth!.token,
+          body: { sessionId, event: adminPresent ? "admin-joined" : "admin-left" },
+        }).catch(() => {});
+      }
+    }
+
+    presenceChannel.on("presence", { event: "sync" }, checkAdminPresence).subscribe(async (status) => {
+      if (status === "SUBSCRIBED") {
+        await presenceChannel.track({ isAdmin: auth.user.isAdmin, name: auth.user.name });
+      }
+    });
+
+    return () => {
+      void supabase.removeChannel(presenceChannel);
+    };
+  }, [sessionId, auth]);
 
   const advanceTurn = useCallback(() => {
-    if (!auth || !sessionId) return;
-    getSocket(auth.token).emit("turn:advance", { sessionId }, () => {});
+    if (!auth || !sessionId) return Promise.resolve();
+    return apiFetch("/api/turn/advance", { method: "POST", token: auth.token, body: { sessionId } });
   }, [auth, sessionId]);
 
   const pauseTurn = useCallback(() => {
-    if (!auth || !sessionId) return;
-    getSocket(auth.token).emit("turn:pause", { sessionId }, () => {});
+    if (!auth || !sessionId) return Promise.resolve();
+    return apiFetch("/api/turn/pause", { method: "POST", token: auth.token, body: { sessionId } });
   }, [auth, sessionId]);
 
   const resumeTurn = useCallback(() => {
-    if (!auth || !sessionId) return;
-    getSocket(auth.token).emit("turn:resume", { sessionId }, () => {});
+    if (!auth || !sessionId) return Promise.resolve();
+    return apiFetch("/api/turn/resume", { method: "POST", token: auth.token, body: { sessionId } });
   }, [auth, sessionId]);
 
   const submitAction = useCallback(
-    (actionText: string) =>
-      new Promise<{ ruling: RulingResult }>((resolve, reject) => {
-        if (!auth || !sessionId) return reject(new Error("Not connected"));
-        getSocket(auth.token).emit("action:submit", { sessionId, actionText }, (res: any) => {
-          if (res.ok) resolve(res);
-          else reject(new Error(res.error));
-        });
-      }),
+    (characterId: string, actionText: string) => {
+      if (!auth || !sessionId) return Promise.reject(new Error("Not connected"));
+      return apiFetch("/api/turn/action", { method: "POST", token: auth.token, body: { sessionId, characterId, actionText } });
+    },
     [auth, sessionId]
   );
 
   const submitRoll = useCallback(
-    (rollValue: number, rollType?: string) =>
-      new Promise<{ ruling: RulingResult }>((resolve, reject) => {
-        if (!auth || !sessionId) return reject(new Error("Not connected"));
-        getSocket(auth.token).emit("roll:submit", { sessionId, rollValue, rollType }, (res: any) => {
-          if (res.ok) resolve(res);
-          else reject(new Error(res.error));
-        });
-      }),
+    (characterId: string, rollValue: number, rollType?: string) => {
+      if (!auth || !sessionId) return Promise.reject(new Error("Not connected"));
+      return apiFetch("/api/turn/roll", { method: "POST", token: auth.token, body: { sessionId, characterId, rollValue, rollType } });
+    },
     [auth, sessionId]
   );
 
@@ -122,14 +153,10 @@ export function useLiveSession(sessionId: string | null) {
       hpChange?: number;
       conditionsAdded?: { name: string; roundsRemaining?: number }[];
       conditionsRemoved?: string[];
-    }) =>
-      new Promise<void>((resolve, reject) => {
-        if (!auth || !sessionId) return reject(new Error("Not connected"));
-        getSocket(auth.token).emit("correction:issue", { sessionId, ...payload }, (res: any) => {
-          if (res.ok) resolve();
-          else reject(new Error(res.error));
-        });
-      }),
+    }) => {
+      if (!auth || !sessionId) return Promise.reject(new Error("Not connected"));
+      return apiFetch("/api/turn/correction", { method: "POST", token: auth.token, body: { sessionId, ...payload } });
+    },
     [auth, sessionId]
   );
 
@@ -139,7 +166,6 @@ export function useLiveSession(sessionId: string | null) {
     characters,
     connected,
     error,
-    claimCharacter,
     advanceTurn,
     pauseTurn,
     resumeTurn,

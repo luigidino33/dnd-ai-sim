@@ -1,45 +1,25 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import type { CampaignRecord, Character, Session } from "@dnd-ai-sim/shared";
 import { useAuth } from "../state/AuthContext";
 import { apiFetch } from "../api/http";
-
-interface CampaignDoc {
-  _id: string;
-  name: string;
-  dmTone: string;
-  playerInviteCode: string;
-  adminInviteCode: string;
-  worldBible: { locations: any[]; factions: any[]; plotThreads: any[] };
-}
-interface CharacterSummary {
-  _id: string;
-  name: string;
-  race: string;
-  class: string;
-  level: number;
-  hitPoints: { current: number; max: number };
-}
-interface SessionDoc {
-  _id: string;
-  status: string;
-}
 
 export default function AdminDashboard() {
   const { auth, logout } = useAuth();
   const navigate = useNavigate();
-  const [campaign, setCampaign] = useState<CampaignDoc | null>(null);
-  const [characters, setCharacters] = useState<CharacterSummary[]>([]);
-  const [currentSession, setCurrentSession] = useState<SessionDoc | null>(null);
+  const [campaign, setCampaign] = useState<CampaignRecord | null>(null);
+  const [characters, setCharacters] = useState<Character[]>([]);
+  const [currentSession, setCurrentSession] = useState<Session | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [starting, setStarting] = useState(false);
 
   useEffect(() => {
     if (!auth) return;
-    apiFetch<CampaignDoc>(`/api/campaigns/${auth.campaign.id}`, { token: auth.token }).then(setCampaign).catch((e) => setError(e.message));
-    apiFetch<CharacterSummary[]>(`/api/characters/campaign/${auth.campaign.id}`, { token: auth.token })
+    apiFetch<CampaignRecord>(`/api/campaigns/${auth.campaign.id}`, { token: auth.token }).then(setCampaign).catch((e) => setError(e.message));
+    apiFetch<Character[]>(`/api/characters/campaign/${auth.campaign.id}`, { token: auth.token })
       .then(setCharacters)
       .catch((e) => setError(e.message));
-    apiFetch<SessionDoc | null>(`/api/sessions/campaign/${auth.campaign.id}/current`, { token: auth.token })
+    apiFetch<Session | null>(`/api/sessions/campaign/${auth.campaign.id}/current`, { token: auth.token })
       .then(setCurrentSession)
       .catch(() => {});
   }, [auth]);
@@ -49,8 +29,8 @@ export default function AdminDashboard() {
     setStarting(true);
     setError(null);
     try {
-      const session = await apiFetch<SessionDoc>("/api/sessions", { method: "POST", token: auth.token, body: {} });
-      navigate(`/host/${session._id}`);
+      const session = await apiFetch<Session>("/api/sessions", { method: "POST", token: auth.token, body: {} });
+      navigate(`/host/${session.id}`);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not start session");
     } finally {
@@ -91,7 +71,7 @@ export default function AdminDashboard() {
         ) : (
           <ul className="space-y-1 text-sm">
             {characters.map((c) => (
-              <li key={c._id} className="flex justify-between border-b border-ink/10 py-1">
+              <li key={c.id} className="flex justify-between border-b border-ink/10 py-1">
                 <span>
                   {c.name} -- Lvl {c.level} {c.race} {c.class}
                 </span>
@@ -108,7 +88,7 @@ export default function AdminDashboard() {
         <h2 className="mb-3 font-semibold">Live session</h2>
         {currentSession ? (
           <button
-            onClick={() => navigate(`/host/${currentSession._id}`)}
+            onClick={() => navigate(`/host/${currentSession.id}`)}
             className="rounded bg-arcane px-4 py-2 font-semibold text-white hover:opacity-90"
           >
             Resume session ({currentSession.status})

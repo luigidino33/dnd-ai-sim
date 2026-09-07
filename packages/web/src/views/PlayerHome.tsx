@@ -2,38 +2,31 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../state/AuthContext";
 import { apiFetch } from "../api/http";
-import type { Character } from "@dnd-ai-sim/shared";
-
-interface SessionDoc {
-  _id: string;
-  status: string;
-}
+import type { Character, Session } from "@dnd-ai-sim/shared";
 
 export default function PlayerHome() {
   const { auth, logout } = useAuth();
   const navigate = useNavigate();
-  const [characters, setCharacters] = useState<(Character & { _id: string })[]>([]);
-  const [session, setSession] = useState<SessionDoc | null>(null);
+  const [characters, setCharacters] = useState<Character[]>([]);
+  const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     if (!auth) return;
-    apiFetch<(Character & { _id: string })[]>(`/api/characters/campaign/${auth.campaign.id}`, { token: auth.token })
-      .then((chars) => setCharacters(chars.filter((c: any) => String(c.playerId) === auth.user.id)))
+    apiFetch<Character[]>(`/api/characters/campaign/${auth.campaign.id}`, { token: auth.token })
+      .then((chars) => setCharacters(chars.filter((c) => c.playerId === auth.user.id)))
       .finally(() => setLoading(false));
   }, [auth]);
 
-  // Poll for a live session starting -- this screen has no open socket to be pushed to,
+  // Poll for a live session starting -- this screen has no open realtime subscription,
   // so a short poll is how "the Admin just started a session" reaches a waiting player.
   useEffect(() => {
     if (!auth) return;
     let cancelled = false;
     const check = () =>
-      apiFetch<SessionDoc | null>(`/api/sessions/campaign/${auth.campaign.id}/current`, { token: auth.token }).then(
-        (sess) => {
-          if (!cancelled) setSession(sess);
-        }
-      );
+      apiFetch<Session | null>(`/api/sessions/campaign/${auth.campaign.id}/current`, { token: auth.token }).then((sess) => {
+        if (!cancelled) setSession(sess);
+      });
     check();
     const interval = setInterval(check, 4000);
     return () => {
@@ -62,7 +55,7 @@ export default function PlayerHome() {
         <>
           <section className="mb-6 space-y-3">
             {characters.map((c) => (
-              <div key={c._id} className="rounded-lg border border-ink/20 bg-white/60 p-4">
+              <div key={c.id} className="rounded-lg border border-ink/20 bg-white/60 p-4">
                 <div className="mb-2 flex items-center justify-between">
                   <div>
                     <p className="font-semibold">{c.name}</p>
@@ -76,7 +69,7 @@ export default function PlayerHome() {
                 </div>
                 {session ? (
                   <button
-                    onClick={() => navigate(`/session/${session._id}/character/${c._id}`)}
+                    onClick={() => navigate(`/session/${session.id}/character/${c.id}`)}
                     className="w-full rounded bg-ember px-3 py-2 text-sm font-semibold text-white hover:opacity-90"
                   >
                     Join live session

@@ -1,4 +1,6 @@
-export const API_BASE = import.meta.env.VITE_API_BASE ?? "http://localhost:4000";
+// Same-origin on Vercel (the app and its /api functions are one deployment),
+// so this is empty by default -- only set VITE_API_BASE if the API is hosted elsewhere.
+export const API_BASE = import.meta.env.VITE_API_BASE ?? "";
 
 export class ApiError extends Error {
   constructor(message: string, public status: number) {

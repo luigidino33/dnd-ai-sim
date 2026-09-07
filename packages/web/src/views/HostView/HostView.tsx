@@ -11,13 +11,13 @@ export default function HostView() {
 
   const activeCharacterId = useMemo(() => {
     if (!session || session.currentTurnIndex < 0) return null;
-    return String((session.turnQueue[session.currentTurnIndex] as any)?.characterId ?? "");
+    return session.turnQueue[session.currentTurnIndex]?.characterId ?? null;
   }, [session]);
 
   const lastRuling = [...events].reverse().find((e) => e.type === "ruling");
 
-  function charName(id?: string) {
-    return characters.find((c: any) => String(c._id) === String(id))?.name ?? "Unknown";
+  function charName(id?: string | null) {
+    return characters.find((c) => c.id === id)?.name ?? "Unknown";
   }
 
   if (!session) {
@@ -44,7 +44,7 @@ export default function HostView() {
         <aside className="col-span-1">
           <h2 className="mb-3 text-xl font-semibold">Turn Queue</h2>
           <ol className="space-y-2">
-            {session.turnQueue.map((entry: any, i: number) => {
+            {session.turnQueue.map((entry, i) => {
               const isActive = i === session.currentTurnIndex;
               return (
                 <li
@@ -78,9 +78,11 @@ export default function HostView() {
 
           {lastRuling && (
             <CorrectionPanel
-              key={lastRuling.id ?? (lastRuling as any)._id}
+              key={lastRuling.id}
               event={lastRuling}
-              onSubmit={(payload) => issueCorrection(payload)}
+              onSubmit={async (payload) => {
+                await issueCorrection(payload);
+              }}
             />
           )}
         </aside>
@@ -93,8 +95,8 @@ export default function HostView() {
             )}
           </h2>
           <div className="flex-1 space-y-3 overflow-y-auto rounded-lg bg-parchment/5 p-4 text-xl leading-relaxed">
-            {events.map((e, i) => (
-              <p key={(e as any)._id ?? i} className={e.type === "correction" ? "text-yellow-300" : e.type === "system" ? "text-parchment/50 text-base" : ""}>
+            {events.map((e) => (
+              <p key={e.id} className={e.type === "correction" ? "text-yellow-300" : e.type === "system" ? "text-parchment/50 text-base" : ""}>
                 {e.type !== "system" && <span className="font-semibold">{e.actorLabel ?? e.type}: </span>}
                 {e.text}
               </p>

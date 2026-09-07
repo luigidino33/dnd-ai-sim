@@ -1,42 +1,32 @@
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { useParams } from "react-router-dom";
 import { useLiveSession } from "../../state/useLiveSession";
 
 export default function PlayerView() {
   const { sessionId, characterId } = useParams<{ sessionId: string; characterId: string }>();
-  const { session, events, characters, connected, claimCharacter, submitAction, submitRoll } = useLiveSession(
-    sessionId ?? null
-  );
+  const { session, events, characters, connected, submitAction, submitRoll } = useLiveSession(sessionId ?? null);
 
-  const [claimed, setClaimed] = useState(false);
   const [actionText, setActionText] = useState("");
   const [rollValue, setRollValue] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showPrivate, setShowPrivate] = useState(false);
 
-  useEffect(() => {
-    if (!characterId || !connected) return;
-    claimCharacter(characterId)
-      .then(() => setClaimed(true))
-      .catch((e) => setError(e.message));
-  }, [characterId, connected, claimCharacter]);
-
-  const character = characters.find((c: any) => String(c._id) === characterId);
+  const character = characters.find((c) => c.id === characterId);
 
   const isMyTurn = useMemo(() => {
     if (!session || session.currentTurnIndex < 0) return false;
-    return String((session.turnQueue[session.currentTurnIndex] as any)?.characterId) === characterId;
+    return session.turnQueue[session.currentTurnIndex]?.characterId === characterId;
   }, [session, characterId]);
 
   const recentNarration = [...events].reverse().find((e) => e.type === "ruling" || e.type === "system");
 
   async function handleSubmitAction() {
-    if (!actionText.trim()) return;
+    if (!actionText.trim() || !characterId) return;
     setBusy(true);
     setError(null);
     try {
-      await submitAction(actionText.trim());
+      await submitAction(characterId, actionText.trim());
       setActionText("");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to submit action");
@@ -46,11 +36,11 @@ export default function PlayerView() {
   }
 
   async function handleSubmitRoll() {
-    if (!rollValue) return;
+    if (!rollValue || !characterId) return;
     setBusy(true);
     setError(null);
     try {
-      await submitRoll(Number(rollValue), session?.pendingRoll?.rollType);
+      await submitRoll(characterId, Number(rollValue), session?.pendingRoll?.rollType);
       setRollValue("");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to submit roll");
@@ -59,7 +49,7 @@ export default function PlayerView() {
     }
   }
 
-  if (!session || !character || !claimed) {
+  if (!session || !character) {
     return <div className="flex min-h-screen items-center justify-center text-lg text-ink/60">Connecting...</div>;
   }
 
@@ -76,7 +66,7 @@ export default function PlayerView() {
           </span>
           <span>AC {character.derived.armorClass}</span>
           {character.conditions.length > 0 && (
-            <span className="text-ember">{character.conditions.map((c: any) => c.name).join(", ")}</span>
+            <span className="text-ember">{character.conditions.map((c) => c.name).join(", ")}</span>
           )}
         </div>
         {!connected && <p className="mt-1 text-xs text-red-600">Reconnecting...</p>}
@@ -142,7 +132,7 @@ export default function PlayerView() {
         <div className="mt-2 space-y-2 rounded-lg bg-white/50 p-3 text-sm">
           <p className="font-semibold">Equipment</p>
           <ul className="list-inside list-disc">
-            {character.equipment.map((item: any, i: number) => (
+            {character.equipment.map((item, i) => (
               <li key={i}>
                 {item.name} x{item.quantity}
               </li>
@@ -151,7 +141,7 @@ export default function PlayerView() {
           {character.spellSlots && (
             <>
               <p className="mt-2 font-semibold">Spell slots</p>
-              {Object.entries(character.spellSlots).map(([level, slot]: any) => (
+              {Object.entries(character.spellSlots).map(([level, slot]) => (
                 <p key={level}>
                   Level {level}: {slot.current}/{slot.max}
                 </p>
@@ -159,7 +149,7 @@ export default function PlayerView() {
             </>
           )}
           <p className="mt-2 font-semibold">Saving throws</p>
-          {Object.entries(character.derived.savingThrows).map(([key, val]: any) => (
+          {Object.entries(character.derived.savingThrows).map(([key, val]) => (
             <p key={key}>
               {key}: {val.bonus >= 0 ? "+" : ""}
               {val.bonus}

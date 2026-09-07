@@ -1,6 +1,5 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
 import { apiFetch } from "../api/http";
-import { disconnectSocket } from "../api/socket";
 
 export interface AuthUser {
   id: string;
@@ -54,7 +53,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   function logout() {
-    disconnectSocket();
     setAuth(null);
   }
 

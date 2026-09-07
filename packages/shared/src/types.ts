@@ -1,6 +1,6 @@
-// Shared domain types used by both the server and the web app.
-// These describe the shape of data as it crosses the API/socket boundary,
-// not Mongoose document internals (those live in packages/server/src/db/models).
+// Shared domain types used by both the API functions and the web app.
+// These describe the camelCase shape of data as it crosses the API boundary --
+// see dbMappers.ts for how Postgres rows (snake_case columns) map onto these.
 
 export const ABILITY_SCORE_KEYS = [
   "strength",

@@ -181,7 +181,14 @@ export async function requestWorldBuilding(params: { campaign: CampaignRecord })
   if (!toolUse || toolUse.type !== "tool_use") {
     throw new Error("AI DM did not return world-building content");
   }
-  return toolUse.input as WorldBuildingResult;
+  // BUILD_WORLD_TOOL's input_schema is flat (locations/factions/plotThreads/
+  // openingNarration all top-level) -- reshape into the nested WorldBible
+  // shape the rest of the app (and the DB column) expects.
+  const input = toolUse.input as { locations: unknown; factions: unknown; plotThreads: unknown; openingNarration: string };
+  return {
+    worldBible: { locations: input.locations, factions: input.factions, plotThreads: input.plotThreads } as WorldBible,
+    openingNarration: input.openingNarration,
+  };
 }
 
 /** On-request suggestions for the active player's turn -- inspiration, not a required menu; the player can still type anything. */

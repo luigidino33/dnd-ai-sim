@@ -43,8 +43,11 @@ export default withApi(async (req: VercelRequest, res: VercelResponse) => {
         !campaign?.worldBible.factions?.length &&
         !campaign?.worldBible.plotThreads?.length;
       if (campaign && isEmpty) {
+        console.log("[world-building] requesting from AI...");
         const { worldBible, openingNarration } = await requestWorldBuilding({ campaign });
+        console.log("[world-building] AI returned:", JSON.stringify({ worldBible, openingNarration }).slice(0, 500));
         await updateWorldBible(auth.campaignId, worldBible);
+        console.log("[world-building] world bible saved");
         await logEvent({
           sessionId: session.id,
           campaignId: auth.campaignId,
@@ -52,9 +55,10 @@ export default withApi(async (req: VercelRequest, res: VercelResponse) => {
           actorLabel: "AI DM",
           text: openingNarration,
         });
+        console.log("[world-building] opening narration logged");
       }
     } catch (err) {
-      console.error("world building failed:", err);
+      console.error("world building failed:", err instanceof Error ? err.stack : err);
     }
 
     res.status(201).json(session);

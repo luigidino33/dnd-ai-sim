@@ -7,7 +7,7 @@
     "node": "24.x"
   },
   "scripts": {
-    "build": "tsc --noEmit -p tsconfig.json && tsc --noEmit -p api/tsconfig.json && vite build",
+    "build": "npm run build -w @dnd-ai-sim/shared && tsc --noEmit -p tsconfig.json && tsc --noEmit -p api/tsconfig.json && vite build",
     "preview": "vite preview",
     "deploy": "vercel deploy --prod",
     "seed": "tsx scripts/seed.ts"

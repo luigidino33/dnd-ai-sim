@@ -5,9 +5,8 @@ import CorrectionPanel from "./CorrectionPanel";
 
 export default function HostView() {
   const { sessionId } = useParams<{ sessionId: string }>();
-  const { session, events, characters, connected, advanceTurn, pauseTurn, resumeTurn, issueCorrection } = useLiveSession(
-    sessionId ?? null
-  );
+  const { session, events, characters, connected, advanceTurn, previousTurn, pauseTurn, resumeTurn, issueCorrection } =
+    useLiveSession(sessionId ?? null);
 
   const activeCharacterId = useMemo(() => {
     if (!session || session.currentTurnIndex < 0) return null;
@@ -65,6 +64,13 @@ export default function HostView() {
             >
               Advance Turn ➜
             </button>
+            <button
+              onClick={previousTurn}
+              disabled={session.currentTurnIndex < 0}
+              className="w-full rounded bg-parchment/20 px-4 py-3 text-lg font-semibold hover:bg-parchment/30 disabled:opacity-40"
+            >
+              ⬅ Previous Turn
+            </button>
             {session.status === "paused" ? (
               <button onClick={resumeTurn} className="w-full rounded bg-green-700 px-4 py-3 text-lg font-semibold text-white hover:opacity-90">
                 Resume
@@ -96,8 +102,19 @@ export default function HostView() {
           </h2>
           <div className="flex-1 space-y-3 overflow-y-auto rounded-lg bg-parchment/5 p-4 text-xl leading-relaxed">
             {events.map((e) => (
-              <p key={e.id} className={e.type === "correction" ? "text-yellow-300" : e.type === "system" ? "text-parchment/50 text-base" : ""}>
-                {e.type !== "system" && <span className="font-semibold">{e.actorLabel ?? e.type}: </span>}
+              <p
+                key={e.id}
+                className={
+                  e.type === "correction"
+                    ? "text-yellow-300"
+                    : e.type === "system"
+                      ? "text-parchment/50 text-base"
+                      : e.type === "narration"
+                        ? "italic text-parchment/80"
+                        : ""
+                }
+              >
+                {e.type !== "system" && e.type !== "narration" && <span className="font-semibold">{e.actorLabel ?? e.type}: </span>}
                 {e.text}
               </p>
             ))}

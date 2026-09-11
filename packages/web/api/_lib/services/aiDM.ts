@@ -41,6 +41,25 @@ function eventSummary(event: SessionEvent): string {
   return `[${event.type}] ${label}: ${event.text}`;
 }
 
+function worldBibleText(campaign: CampaignRecord): string {
+  const worldBible = campaign.worldBible;
+  return (
+    [
+      worldBible?.locations?.length
+        ? `Locations:\n${worldBible.locations.map((l: any) => `- ${l.name}: ${l.description}`).join("\n")}`
+        : "",
+      worldBible?.factions?.length
+        ? `Factions:\n${worldBible.factions.map((f: any) => `- ${f.name}: ${f.description}`).join("\n")}`
+        : "",
+      worldBible?.plotThreads?.length
+        ? `Plot threads:\n${worldBible.plotThreads.map((p: any) => `- ${p.name} (${p.status}): ${p.description}`).join("\n")}`
+        : "",
+    ]
+      .filter(Boolean)
+      .join("\n\n") || "(empty so far)"
+  );
+}
+
 export interface RequestRulingParams {
   campaign: CampaignRecord;
   actingCharacter: Character;
@@ -54,22 +73,6 @@ export interface RequestRulingParams {
 export async function requestRuling(params: RequestRulingParams): Promise<RulingResult> {
   const { campaign, actingCharacter, partySummaries, recentEvents, playerActionText, rollType, rollValue } = params;
 
-  const worldBible = campaign.worldBible;
-  const worldBibleText =
-    [
-      worldBible?.locations?.length
-        ? `Locations:\n${worldBible.locations.map((l: any) => `- ${l.name}: ${l.description}`).join("\n")}`
-        : "",
-      worldBible?.factions?.length
-        ? `Factions:\n${worldBible.factions.map((f: any) => `- ${f.name}: ${f.description}`).join("\n")}`
-        : "",
-      worldBible?.plotThreads?.length
-        ? `Plot threads:\n${worldBible.plotThreads.map((p: any) => `- ${p.name} (${p.status}): ${p.description}`).join("\n")}`
-        : "",
-    ]
-      .filter(Boolean)
-      .join("\n\n") || "(empty so far)";
-
   const rulesContext = buildRulesContext(playerActionText, {
     activeConditionNames: (actingCharacter.conditions ?? []).map((c) => c.name),
   });
@@ -80,7 +83,7 @@ export async function requestRuling(params: RequestRulingParams): Promise<Ruling
       : `No roll has been entered yet for this action.`;
 
   const userMessage = [
-    `## World Bible\n${worldBibleText}`,
+    `## World Bible\n${worldBibleText(campaign)}`,
     `## Acting Character\n${characterSummary(actingCharacter)}`,
     partySummaries.length > 0
       ? `## Party\n${partySummaries.map((c) => `- ${c.name}: ${c.hitPoints.current}/${c.hitPoints.max} HP`).join("\n")}`
@@ -107,4 +110,36 @@ export async function requestRuling(params: RequestRulingParams): Promise<Ruling
   }
 
   return toolUse.input as RulingResult;
+}
+
+export interface RequestRoundNarrationParams {
+  campaign: CampaignRecord;
+  recentEvents: SessionEvent[];
+  round: number;
+}
+
+/**
+ * Ambient scene-setting narration fired automatically whenever the round
+ * number advances (requirement "narrations about the world") -- plain text,
+ * not tied to any character's action, so no apply_ruling tool-use needed.
+ */
+export async function requestRoundNarration(params: RequestRoundNarrationParams): Promise<string> {
+  const { campaign, recentEvents, round } = params;
+
+  const userMessage = [
+    `## World Bible\n${worldBibleText(campaign)}`,
+    `## Recent Session Log\n${recentEvents.map(eventSummary).join("\n") || "(session just started)"}`,
+    `## Round ${round} is beginning.`,
+    `Give a brief (1-3 sentence) piece of ambient narration -- scene-setting, environmental detail, an NPC's ambient action, or a subtle world/plot development -- to set the mood as play continues into this round. Do not resolve any mechanics, address a specific player, or ask a question.`,
+  ].join("\n\n");
+
+  const response = await client.messages.create({
+    model: env.aiDmModel,
+    max_tokens: 300,
+    system: systemPrompt(campaign),
+    messages: [{ role: "user", content: userMessage }],
+  });
+
+  const textBlock = response.content.find((block) => block.type === "text");
+  return textBlock && textBlock.type === "text" ? textBlock.text.trim() : "";
 }

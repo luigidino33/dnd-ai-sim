@@ -118,6 +118,11 @@ export function useLiveSession(sessionId: string | null) {
     return apiFetch("/api/turn/advance", { method: "POST", token: auth.token, body: { sessionId } });
   }, [auth, sessionId]);
 
+  const previousTurn = useCallback(() => {
+    if (!auth || !sessionId) return Promise.resolve();
+    return apiFetch("/api/turn/previous", { method: "POST", token: auth.token, body: { sessionId } });
+  }, [auth, sessionId]);
+
   const pauseTurn = useCallback(() => {
     if (!auth || !sessionId) return Promise.resolve();
     return apiFetch("/api/turn/pause", { method: "POST", token: auth.token, body: { sessionId } });
@@ -167,6 +172,7 @@ export function useLiveSession(sessionId: string | null) {
     connected,
     error,
     advanceTurn,
+    previousTurn,
     pauseTurn,
     resumeTurn,
     submitAction,

@@ -50,7 +50,7 @@ export function activeCharacterId(session: Pick<Session, "turnQueue" | "currentT
   return session.turnQueue[session.currentTurnIndex].characterId;
 }
 
-export async function advanceTurn(sessionId: string): Promise<Session> {
+export async function advanceTurn(sessionId: string): Promise<{ session: Session; roundAdvanced: boolean }> {
   const session = await getSession(sessionId);
   if (!session) throw new Error("Session not found");
   if (session.turnQueue.length === 0) throw new Error("Turn queue is empty");
@@ -62,9 +62,11 @@ export async function advanceTurn(sessionId: string): Promise<Session> {
 
   let currentTurnIndex = session.currentTurnIndex + 1;
   let round = session.round;
+  let roundAdvanced = false;
   if (currentTurnIndex >= turnQueue.length) {
     currentTurnIndex = 0;
     round += 1;
+    roundAdvanced = true;
     turnQueue.forEach((entry) => {
       entry.hasActedThisRound = false;
     });
@@ -73,7 +75,35 @@ export async function advanceTurn(sessionId: string): Promise<Session> {
   const db = getServiceClient();
   const { data, error } = await db
     .from("sessions")
-    .update({ turn_queue: turnQueue, current_turn_index: currentTurnIndex, round, pending_roll: null })
+    .update({ turn_queue: turnQueue, current_turn_index: currentTurnIndex, round, pending_roll: null, pending_action_text: null })
+    .eq("id", sessionId)
+    .select()
+    .single();
+  if (error) throw error;
+  return { session: rowToSession(data), roundAdvanced };
+}
+
+/** Rewinds the turn pointer to the previous character's turn -- undoes an accidental Advance Turn click. Does not revert HP/conditions/narration already applied. */
+export async function previousTurn(sessionId: string): Promise<Session> {
+  const session = await getSession(sessionId);
+  if (!session) throw new Error("Session not found");
+  if (session.turnQueue.length === 0) throw new Error("Turn queue is empty");
+  if (session.currentTurnIndex < 0) throw new Error("No turn has started yet");
+
+  const turnQueue = session.turnQueue.map((entry) => ({ ...entry }));
+  let currentTurnIndex = session.currentTurnIndex - 1;
+  let round = session.round;
+  if (currentTurnIndex < 0) {
+    currentTurnIndex = turnQueue.length - 1;
+    round = Math.max(1, round - 1);
+  }
+  // Going back to this character's turn means they haven't acted (again) this round.
+  turnQueue[currentTurnIndex].hasActedThisRound = false;
+
+  const db = getServiceClient();
+  const { data, error } = await db
+    .from("sessions")
+    .update({ turn_queue: turnQueue, current_turn_index: currentTurnIndex, round, pending_roll: null, pending_action_text: null })
     .eq("id", sessionId)
     .select()
     .single();

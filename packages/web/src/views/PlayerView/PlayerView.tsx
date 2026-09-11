@@ -19,7 +19,7 @@ export default function PlayerView() {
     return session.turnQueue[session.currentTurnIndex]?.characterId === characterId;
   }, [session, characterId]);
 
-  const recentNarration = [...events].reverse().find((e) => e.type === "ruling" || e.type === "system");
+  const recentNarration = [...events].reverse().find((e) => e.type === "ruling" || e.type === "system" || e.type === "narration");
 
   async function handleSubmitAction() {
     if (!actionText.trim() || !characterId) return;

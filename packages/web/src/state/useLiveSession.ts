@@ -149,6 +149,18 @@ export function useLiveSession(sessionId: string | null) {
     [auth, sessionId]
   );
 
+  const suggestActions = useCallback(
+    (characterId: string) => {
+      if (!auth || !sessionId) return Promise.reject(new Error("Not connected"));
+      return apiFetch<{ suggestions: string[] }>("/api/turn/suggest", {
+        method: "POST",
+        token: auth.token,
+        body: { sessionId, characterId },
+      });
+    },
+    [auth, sessionId]
+  );
+
   const issueCorrection = useCallback(
     (payload: {
       originalText: string;
@@ -177,6 +189,7 @@ export function useLiveSession(sessionId: string | null) {
     resumeTurn,
     submitAction,
     submitRoll,
+    suggestActions,
     issueCorrection,
   };
 }

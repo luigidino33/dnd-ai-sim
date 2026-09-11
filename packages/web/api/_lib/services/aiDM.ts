@@ -1,10 +1,13 @@
 import Anthropic from "@anthropic-ai/sdk";
 import {
   APPLY_RULING_TOOL,
+  BUILD_WORLD_TOOL,
+  SUGGEST_ACTIONS_TOOL,
   type CampaignRecord,
   type Character,
   type RulingResult,
   type SessionEvent,
+  type WorldBible,
 } from "@dnd-ai-sim/shared";
 import { env } from "../env.js";
 import { buildRulesContext } from "../srd/lookup.js";
@@ -142,4 +145,72 @@ export async function requestRoundNarration(params: RequestRoundNarrationParams)
 
   const textBlock = response.content.find((block) => block.type === "text");
   return textBlock && textBlock.type === "text" ? textBlock.text.trim() : "";
+}
+
+export interface WorldBuildingResult {
+  worldBible: WorldBible;
+  openingNarration: string;
+}
+
+/**
+ * Fires once, when a campaign's first session starts and its world bible is
+ * still empty: the AI invents the setting (locations/factions/plot threads)
+ * so the world bible -- already injected into every other AI call -- has
+ * something to work with from turn one, plus an opening scene to kick off.
+ */
+export async function requestWorldBuilding(params: { campaign: CampaignRecord }): Promise<WorldBuildingResult> {
+  const { campaign } = params;
+
+  const userMessage = [
+    `A brand-new D&D 5e campaign is starting with no established world yet.`,
+    `Tone/style: ${campaign.dmTone}.`,
+    `Invent a small, coherent starting world: a handful of locations, a few factions with competing interests, and some seed plot threads the party could pursue. Keep everything tight and usable at the table, not an epic worldbook.`,
+    `Then write a short opening narration (in-character, a few sentences) that drops the party into the world and this first scene.`,
+  ].join("\n");
+
+  const response = await client.messages.create({
+    model: env.aiDmModel,
+    max_tokens: 1500,
+    system: systemPrompt(campaign),
+    tools: [BUILD_WORLD_TOOL],
+    tool_choice: { type: "tool", name: BUILD_WORLD_TOOL.name },
+    messages: [{ role: "user", content: userMessage }],
+  });
+
+  const toolUse = response.content.find((block) => block.type === "tool_use");
+  if (!toolUse || toolUse.type !== "tool_use") {
+    throw new Error("AI DM did not return world-building content");
+  }
+  return toolUse.input as WorldBuildingResult;
+}
+
+/** On-request suggestions for the active player's turn -- inspiration, not a required menu; the player can still type anything. */
+export async function requestMoveSuggestions(params: {
+  campaign: CampaignRecord;
+  character: Character;
+  recentEvents: SessionEvent[];
+}): Promise<string[]> {
+  const { campaign, character, recentEvents } = params;
+
+  const userMessage = [
+    `## World Bible\n${worldBibleText(campaign)}`,
+    `## Character\n${characterSummary(character)}`,
+    `## Recent Session Log\n${recentEvents.map(eventSummary).join("\n") || "(session just started)"}`,
+    `It's ${character.name}'s turn. Suggest a few concrete things they could do right now, grounded in the current scene and their character sheet.`,
+  ].join("\n\n");
+
+  const response = await client.messages.create({
+    model: env.aiDmModel,
+    max_tokens: 400,
+    system: systemPrompt(campaign),
+    tools: [SUGGEST_ACTIONS_TOOL],
+    tool_choice: { type: "tool", name: SUGGEST_ACTIONS_TOOL.name },
+    messages: [{ role: "user", content: userMessage }],
+  });
+
+  const toolUse = response.content.find((block) => block.type === "tool_use");
+  if (!toolUse || toolUse.type !== "tool_use") {
+    throw new Error("AI DM did not return suggestions");
+  }
+  return (toolUse.input as { suggestions: string[] }).suggestions;
 }

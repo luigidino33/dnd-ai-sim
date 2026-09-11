@@ -4,13 +4,17 @@ import { useLiveSession } from "../../state/useLiveSession";
 
 export default function PlayerView() {
   const { sessionId, characterId } = useParams<{ sessionId: string; characterId: string }>();
-  const { session, events, characters, connected, submitAction, submitRoll } = useLiveSession(sessionId ?? null);
+  const { session, events, characters, connected, submitAction, submitRoll, suggestActions } = useLiveSession(
+    sessionId ?? null
+  );
 
   const [actionText, setActionText] = useState("");
   const [rollValue, setRollValue] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showPrivate, setShowPrivate] = useState(false);
+  const [suggestions, setSuggestions] = useState<string[] | null>(null);
+  const [suggesting, setSuggesting] = useState(false);
 
   const character = characters.find((c) => c.id === characterId);
 
@@ -28,10 +32,25 @@ export default function PlayerView() {
     try {
       await submitAction(characterId, actionText.trim());
       setActionText("");
+      setSuggestions(null);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to submit action");
     } finally {
       setBusy(false);
+    }
+  }
+
+  async function handleGetSuggestions() {
+    if (!characterId) return;
+    setSuggesting(true);
+    setError(null);
+    try {
+      const result = await suggestActions(characterId);
+      setSuggestions(result.suggestions);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to get suggestions");
+    } finally {
+      setSuggesting(false);
     }
   }
 
@@ -105,7 +124,29 @@ export default function PlayerView() {
         </div>
       ) : (
         <div className="rounded-lg border-2 border-arcane bg-white/70 p-4">
-          <p className="mb-2 text-sm font-semibold">It's your turn -- what do you do?</p>
+          <div className="mb-2 flex items-center justify-between">
+            <p className="text-sm font-semibold">It's your turn -- what do you do?</p>
+            <button
+              onClick={handleGetSuggestions}
+              disabled={suggesting}
+              className="text-xs font-semibold text-arcane underline disabled:opacity-50"
+            >
+              {suggesting ? "Thinking..." : "💡 Ideas"}
+            </button>
+          </div>
+          {suggestions && suggestions.length > 0 && (
+            <div className="mb-2 flex flex-wrap gap-1.5">
+              {suggestions.map((s, i) => (
+                <button
+                  key={i}
+                  onClick={() => setActionText(s)}
+                  className="rounded-full border border-arcane/40 bg-arcane/5 px-3 py-1 text-left text-xs text-arcane hover:bg-arcane/10"
+                >
+                  {s}
+                </button>
+              ))}
+            </div>
+          )}
           <textarea
             className="input"
             rows={3}

@@ -7,11 +7,11 @@ import { logEvent, logCorrection, getRecentEvents } from "../_lib/services/event
 import { getCharacter } from "../_lib/services/characterService.js";
 import { getCampaign } from "../_lib/services/campaignService.js";
 import { applyRuling } from "../_lib/services/rulesEngine.js";
-import { requestRoundNarration } from "../_lib/services/aiDM.js";
+import { requestMoveSuggestions, requestRoundNarration } from "../_lib/services/aiDM.js";
 
 // Consolidated into one dynamic-segment function (was 6 separate files) to
 // stay well under Vercel's per-deployment Serverless Function count limit.
-// Routes: POST /api/turn/{advance|previous|pause|resume|action|roll|correction}
+// Routes: POST /api/turn/{advance|previous|pause|resume|action|roll|correction|suggest}
 export const config = { maxDuration: 30 };
 
 export default withApi(async (req: VercelRequest, res: VercelResponse) => {
@@ -128,6 +128,24 @@ export default withApi(async (req: VercelRequest, res: VercelResponse) => {
       });
       const result = await processTurnInput({ sessionId, actionText: session.pendingActionText ?? "", rollValue, rollType: effectiveRollType });
       res.json({ ok: true, ...result });
+      return;
+    }
+
+    case "suggest": {
+      const { sessionId, characterId } = readBody<{ sessionId: string; characterId: string }>(req);
+      const session = await getSession(sessionId);
+      if (!session) throw new HttpError(404, "Session not found");
+      await assertOwnsCharacterOrAdmin(auth, characterId);
+      if (!auth.isAdmin && activeCharacterId(session) !== characterId) throw new HttpError(409, "It is not your turn");
+
+      const character = await getCharacter(characterId);
+      if (!character) throw new HttpError(404, "Character not found");
+      const campaign = await getCampaign(session.campaignId);
+      if (!campaign) throw new HttpError(404, "Campaign not found");
+      const recentEvents = await getRecentEvents(sessionId, 10);
+
+      const suggestions = await requestMoveSuggestions({ campaign, character, recentEvents });
+      res.json({ suggestions });
       return;
     }
 

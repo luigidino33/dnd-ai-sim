@@ -16,10 +16,10 @@ export default function AdminDashboard() {
   useEffect(() => {
     if (!auth) return;
     apiFetch<CampaignRecord>(`/api/campaigns/${auth.campaign.id}`, { token: auth.token }).then(setCampaign).catch((e) => setError(e.message));
-    apiFetch<Character[]>(`/api/characters/campaign/${auth.campaign.id}`, { token: auth.token })
+    apiFetch<Character[]>(`/api/characters?campaignId=${auth.campaign.id}`, { token: auth.token })
       .then(setCharacters)
       .catch((e) => setError(e.message));
-    apiFetch<Session | null>(`/api/sessions/campaign/${auth.campaign.id}/current`, { token: auth.token })
+    apiFetch<Session | null>(`/api/sessions?campaignId=${auth.campaign.id}&current=1`, { token: auth.token })
       .then(setCurrentSession)
       .catch(() => {});
   }, [auth]);
@@ -38,7 +38,14 @@ export default function AdminDashboard() {
     }
   }
 
-  if (!auth || !campaign) return <div className="p-8">Loading...</div>;
+  if (!auth) return null;
+  if (!campaign) {
+    return (
+      <div className="p-8">
+        {error ? <p className="text-red-700">{error}</p> : "Loading..."}
+      </div>
+    );
+  }
 
   return (
     <div className="mx-auto max-w-3xl p-6">

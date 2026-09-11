@@ -30,8 +30,8 @@ export function useLiveSession(sessionId: string | null) {
     let cancelled = false;
     Promise.all([
       apiFetch<Session>(`/api/sessions/${sessionId}`, { token: auth.token }),
-      apiFetch<SessionEvent[]>(`/api/sessions/${sessionId}/events`, { token: auth.token }),
-      apiFetch<Character[]>(`/api/characters/campaign/${auth.campaign.id}`, { token: auth.token }),
+      apiFetch<SessionEvent[]>(`/api/sessions/${sessionId}?include=events`, { token: auth.token }),
+      apiFetch<Character[]>(`/api/characters?campaignId=${auth.campaign.id}`, { token: auth.token }),
     ])
       .then(([s, e, c]) => {
         if (cancelled) return;

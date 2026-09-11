@@ -13,7 +13,7 @@ export default function PlayerHome() {
 
   useEffect(() => {
     if (!auth) return;
-    apiFetch<Character[]>(`/api/characters/campaign/${auth.campaign.id}`, { token: auth.token })
+    apiFetch<Character[]>(`/api/characters?campaignId=${auth.campaign.id}`, { token: auth.token })
       .then((chars) => setCharacters(chars.filter((c) => c.playerId === auth.user.id)))
       .finally(() => setLoading(false));
   }, [auth]);
@@ -24,7 +24,7 @@ export default function PlayerHome() {
     if (!auth) return;
     let cancelled = false;
     const check = () =>
-      apiFetch<Session | null>(`/api/sessions/campaign/${auth.campaign.id}/current`, { token: auth.token }).then((sess) => {
+      apiFetch<Session | null>(`/api/sessions?campaignId=${auth.campaign.id}&current=1`, { token: auth.token }).then((sess) => {
         if (!cancelled) setSession(sess);
       });
     check();

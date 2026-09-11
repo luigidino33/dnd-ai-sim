@@ -3,32 +3,18 @@ import { withApi, readBody, HttpError } from "../_lib/http.js";
 import { getAuth } from "../_lib/auth/requireAuth.js";
 import {
   CharacterValidationError,
-  createCharacter,
   getCharacter,
   listCharactersForCampaign,
   updateCharacterOverrides,
-  type CreateCharacterInput,
 } from "../_lib/services/characterService.js";
 
-// Consolidated into one catch-all function (was 3 separate files) to stay
-// well under Vercel's per-deployment Serverless Function count limit.
-// Routes: POST /api/characters, GET|PATCH /api/characters/:id, GET /api/characters/campaign/:campaignId
+// Required catch-all (1+ segments) -- the bare POST /api/characters route
+// lives in index.ts (see campaigns/[...params].ts for why this isn't one
+// optional-catch-all file).
+// Routes: GET|PATCH /api/characters/:id, GET /api/characters/campaign/:campaignId
 export default withApi(async (req: VercelRequest, res: VercelResponse) => {
   const params = ([] as string[]).concat((req.query.params as string[] | undefined) ?? []);
-  const auth = getAuth(req);
-
-  if (params.length === 0) {
-    if (req.method !== "POST") throw new HttpError(405, "Method not allowed");
-    const body = readBody<Omit<CreateCharacterInput, "campaignId" | "playerId">>(req);
-    try {
-      const character = await createCharacter({ ...body, campaignId: auth.campaignId, playerId: auth.userId });
-      res.status(201).json(character);
-    } catch (err) {
-      if (err instanceof CharacterValidationError) throw new HttpError(400, err.message);
-      throw err;
-    }
-    return;
-  }
+  getAuth(req);
 
   if (params.length === 2 && params[0] === "campaign") {
     if (req.method !== "GET") throw new HttpError(405, "Method not allowed");

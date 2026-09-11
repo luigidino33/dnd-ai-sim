@@ -2,23 +2,15 @@ import type { VercelRequest, VercelResponse } from "@vercel/node";
 import type { WorldBible } from "@dnd-ai-sim/shared";
 import { withApi, readBody, HttpError } from "../_lib/http.js";
 import { getAuth, requireAdmin } from "../_lib/auth/requireAuth.js";
-import { createCampaign, getCampaign, updateWorldBible } from "../_lib/services/campaignService.js";
+import { getCampaign, updateWorldBible } from "../_lib/services/campaignService.js";
 
-// Consolidated into one catch-all function (was 3 separate files) to stay
-// well under Vercel's per-deployment Serverless Function count limit.
-// Routes: POST /api/campaigns, GET /api/campaigns/:id, PATCH /api/campaigns/:id/world-bible
+// Required catch-all (1+ segments) -- the bare POST /api/campaigns route
+// lives in index.ts. Vercel's generic Functions routing doesn't fully
+// support the Next.js-style optional double-bracket catch-all, so the
+// zero-segment case has to be its own file.
+// Routes: GET /api/campaigns/:id, PATCH /api/campaigns/:id/world-bible
 export default withApi(async (req: VercelRequest, res: VercelResponse) => {
   const params = ([] as string[]).concat((req.query.params as string[] | undefined) ?? []);
-
-  if (params.length === 0) {
-    if (req.method !== "POST") throw new HttpError(405, "Method not allowed");
-    const { name, dmTone } = readBody<{ name?: string; dmTone?: string }>(req);
-    if (typeof name !== "string" || !name.trim()) throw new HttpError(400, "name is required");
-    const campaign = await createCampaign(name.trim(), dmTone);
-    res.status(201).json(campaign);
-    return;
-  }
-
   const [id, sub] = params;
 
   if (params.length === 2 && sub === "world-bible") {

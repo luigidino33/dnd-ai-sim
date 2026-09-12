@@ -55,6 +55,20 @@ export default withApi(async (req: VercelRequest, res: VercelResponse) => {
       }
     } catch (err) {
       console.error("world building failed:", err instanceof Error ? err.stack : err);
+      // Vercel function logs aren't reachable from outside the dashboard,
+      // so surface the failure as a visible event too -- otherwise a
+      // silent world-building failure looks identical to "still running."
+      try {
+        await logEvent({
+          sessionId: session.id,
+          campaignId: auth.campaignId,
+          type: "system",
+          actorLabel: "system",
+          text: `World-building failed: ${err instanceof Error ? err.message : String(err)}`,
+        });
+      } catch {
+        // best-effort diagnostic only -- never let logging the failure fail the request
+      }
     }
 
     res.status(201).json(session);

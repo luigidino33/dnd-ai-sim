@@ -194,7 +194,11 @@ export async function requestWorldBuilding(params: { campaign: CampaignRecord })
   // shape the rest of the app (and the DB column) expects.
   const input = toolUse.input as { locations: unknown; factions: unknown; plotThreads: unknown; openingNarration: string };
   if (!Array.isArray(input.locations) || !Array.isArray(input.factions) || !Array.isArray(input.plotThreads)) {
-    throw new Error("AI DM returned malformed world-building data (locations/factions/plotThreads not arrays)");
+    // Temporary verbose diagnostic -- shows actual types and a raw snippet so
+    // the malformed shape can be seen without direct log access. Trim once root-caused.
+    const shapes = `locations=${typeof input.locations}, factions=${typeof input.factions}, plotThreads=${typeof input.plotThreads}`;
+    const raw = JSON.stringify(input).slice(0, 800);
+    throw new Error(`AI DM returned malformed world-building data (${shapes}). Raw: ${raw}`);
   }
   return {
     worldBible: { locations: input.locations, factions: input.factions, plotThreads: input.plotThreads } as WorldBible,

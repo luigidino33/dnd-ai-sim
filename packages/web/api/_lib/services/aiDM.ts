@@ -48,13 +48,13 @@ function worldBibleText(campaign: CampaignRecord): string {
   const worldBible = campaign.worldBible;
   return (
     [
-      worldBible?.locations?.length
+      Array.isArray(worldBible?.locations) && worldBible.locations.length
         ? `Locations:\n${worldBible.locations.map((l: any) => `- ${l.name}: ${l.description}`).join("\n")}`
         : "",
-      worldBible?.factions?.length
+      Array.isArray(worldBible?.factions) && worldBible.factions.length
         ? `Factions:\n${worldBible.factions.map((f: any) => `- ${f.name}: ${f.description}`).join("\n")}`
         : "",
-      worldBible?.plotThreads?.length
+      Array.isArray(worldBible?.plotThreads) && worldBible.plotThreads.length
         ? `Plot threads:\n${worldBible.plotThreads.map((p: any) => `- ${p.name} (${p.status}): ${p.description}`).join("\n")}`
         : "",
     ]
@@ -170,12 +170,20 @@ export async function requestWorldBuilding(params: { campaign: CampaignRecord })
 
   const response = await client.messages.create({
     model: env.aiDmModel,
-    max_tokens: 1500,
+    max_tokens: 3000,
     system: systemPrompt(campaign),
     tools: [BUILD_WORLD_TOOL],
     tool_choice: { type: "tool", name: BUILD_WORLD_TOOL.name },
     messages: [{ role: "user", content: userMessage }],
   });
+
+  // A tool call cut off by the token limit still comes back as a tool_use
+  // block, just with incomplete/malformed input -- catch that explicitly
+  // instead of persisting garbage (see requirement 5.4 postmortem: a
+  // truncated response once saved a string fragment into `locations`).
+  if (response.stop_reason === "max_tokens") {
+    throw new Error("AI DM's world-building response was truncated (hit max_tokens)");
+  }
 
   const toolUse = response.content.find((block) => block.type === "tool_use");
   if (!toolUse || toolUse.type !== "tool_use") {
@@ -185,6 +193,9 @@ export async function requestWorldBuilding(params: { campaign: CampaignRecord })
   // openingNarration all top-level) -- reshape into the nested WorldBible
   // shape the rest of the app (and the DB column) expects.
   const input = toolUse.input as { locations: unknown; factions: unknown; plotThreads: unknown; openingNarration: string };
+  if (!Array.isArray(input.locations) || !Array.isArray(input.factions) || !Array.isArray(input.plotThreads)) {
+    throw new Error("AI DM returned malformed world-building data (locations/factions/plotThreads not arrays)");
+  }
   return {
     worldBible: { locations: input.locations, factions: input.factions, plotThreads: input.plotThreads } as WorldBible,
     openingNarration: input.openingNarration,

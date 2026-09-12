@@ -1,7 +1,6 @@
 import Anthropic from "@anthropic-ai/sdk";
 import {
   APPLY_RULING_TOOL,
-  BUILD_WORLD_TOOL,
   SUGGEST_ACTIONS_TOOL,
   type CampaignRecord,
   type Character,
@@ -170,44 +169,60 @@ export interface WorldBuildingResult {
 export async function requestWorldBuilding(params: { campaign: CampaignRecord }): Promise<WorldBuildingResult> {
   const { campaign } = params;
 
+  // NOTE: this deliberately does NOT use forced tool_choice on BUILD_WORLD_TOOL.
+  // That path was tried first and consistently (every single attempt, with
+  // varied prompts and token budgets) came back with the entire payload
+  // collapsed into the `locations` field as one giant string, factions/
+  // plotThreads never populated -- always the first schema property, every
+  // time. That's not generation randomness, it's mechanical, which points at
+  // the tool-call constrained-decoding path itself choking on a schema with
+  // three sibling array-of-object properties (not a truncation or prompt
+  // issue -- both were ruled out separately). Plain-text JSON + manual
+  // parsing sidesteps that path entirely.
   const userMessage = [
     `A brand-new D&D 5e campaign is starting with no established world yet.`,
     `Tone/style: ${campaign.dmTone}.`,
     `Invent a small, coherent starting world: a handful of locations, a few factions with competing interests, and some seed plot threads the party could pursue. Keep everything tight and usable at the table, not an epic worldbook.`,
     `Then write a short opening narration (in-character, a few sentences) that drops the party into the world and this first scene.`,
+    ``,
+    `Respond with ONLY a single JSON object, no markdown code fences, no commentary before or after it, matching exactly this shape:`,
+    `{"locations": [{"name": string, "description": string}, ...3-5 items], "factions": [{"name": string, "description": string}, ...2-4 items], "plotThreads": [{"name": string, "status": string, "description": string}, ...2-3 items], "openingNarration": string}`,
   ].join("\n");
 
   const response = await client.messages.create({
     model: env.aiDmModel,
     max_tokens: 3000,
     system: systemPrompt(campaign),
-    tools: [BUILD_WORLD_TOOL],
-    tool_choice: { type: "tool", name: BUILD_WORLD_TOOL.name },
     messages: [{ role: "user", content: userMessage }],
   });
 
-  // A tool call cut off by the token limit still comes back as a tool_use
-  // block, just with incomplete/malformed input -- catch that explicitly
-  // instead of persisting garbage (see requirement 5.4 postmortem: a
-  // truncated response once saved a string fragment into `locations`).
   if (response.stop_reason === "max_tokens") {
     throw new Error("AI DM's world-building response was truncated (hit max_tokens)");
   }
 
-  const toolUse = response.content.find((block) => block.type === "tool_use");
-  if (!toolUse || toolUse.type !== "tool_use") {
+  const textBlock = response.content.find((block) => block.type === "text");
+  if (!textBlock || textBlock.type !== "text") {
     throw new Error("AI DM did not return world-building content");
   }
-  // BUILD_WORLD_TOOL's input_schema is flat (locations/factions/plotThreads/
-  // openingNarration all top-level) -- reshape into the nested WorldBible
-  // shape the rest of the app (and the DB column) expects.
-  const input = toolUse.input as { locations: unknown; factions: unknown; plotThreads: unknown; openingNarration: string };
-  if (!Array.isArray(input.locations) || !Array.isArray(input.factions) || !Array.isArray(input.plotThreads)) {
-    // Temporary verbose diagnostic -- shows actual types and a raw snippet so
-    // the malformed shape can be seen without direct log access. Trim once root-caused.
-    const shapes = `locations=${typeof input.locations}, factions=${typeof input.factions}, plotThreads=${typeof input.plotThreads}`;
-    const raw = JSON.stringify(input).slice(0, 800);
-    throw new Error(`AI DM returned malformed world-building data (${shapes}). Raw: ${raw}`);
+  // Strip markdown code fences defensively in case the model wraps the JSON
+  // in ```json ... ``` despite being told not to.
+  const raw = textBlock.text.trim().replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/, "");
+
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(raw);
+  } catch {
+    throw new Error(`AI DM's world-building response wasn't valid JSON. Raw: ${raw.slice(0, 800)}`);
+  }
+  const input = parsed as { locations: unknown; factions: unknown; plotThreads: unknown; openingNarration: unknown };
+  if (
+    !Array.isArray(input.locations) ||
+    !Array.isArray(input.factions) ||
+    !Array.isArray(input.plotThreads) ||
+    typeof input.openingNarration !== "string"
+  ) {
+    const shapes = `locations=${typeof input.locations}, factions=${typeof input.factions}, plotThreads=${typeof input.plotThreads}, openingNarration=${typeof input.openingNarration}`;
+    throw new Error(`AI DM returned malformed world-building data (${shapes}). Raw: ${raw.slice(0, 800)}`);
   }
   return {
     worldBible: { locations: input.locations, factions: input.factions, plotThreads: input.plotThreads } as WorldBible,

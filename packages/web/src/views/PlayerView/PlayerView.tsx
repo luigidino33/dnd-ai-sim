@@ -1,12 +1,15 @@
 import { useMemo, useState } from "react";
 import { useParams } from "react-router-dom";
 import { useLiveSession } from "../../state/useLiveSession";
+import { useSpeakNewEvents, useVoicePreference } from "../../lib/speech";
 
 export default function PlayerView() {
   const { sessionId, characterId } = useParams<{ sessionId: string; characterId: string }>();
   const { session, events, characters, connected, submitAction, submitRoll, suggestActions } = useLiveSession(
     sessionId ?? null
   );
+  const [voiceEnabled, setVoiceEnabled] = useVoicePreference("player", false);
+  useSpeakNewEvents(events, voiceEnabled);
 
   const [actionText, setActionText] = useState("");
   const [rollValue, setRollValue] = useState("");
@@ -75,7 +78,16 @@ export default function PlayerView() {
   return (
     <div className="mx-auto flex min-h-screen max-w-md flex-col p-4">
       <header className="mb-4">
-        <h1 className="text-xl font-bold text-arcane">{character.name}</h1>
+        <div className="flex items-start justify-between">
+          <h1 className="text-xl font-bold text-arcane">{character.name}</h1>
+          <button
+            onClick={() => setVoiceEnabled(!voiceEnabled)}
+            title={voiceEnabled ? "Voice narration on -- click to mute" : "Voice narration off -- click to enable"}
+            className="rounded px-1 text-lg"
+          >
+            {voiceEnabled ? "🔊" : "🔇"}
+          </button>
+        </div>
         <p className="text-sm text-ink/60">
           {character.race} {character.class} -- Level {character.level}
         </p>

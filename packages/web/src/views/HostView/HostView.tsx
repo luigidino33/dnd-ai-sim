@@ -1,12 +1,15 @@
 import { useMemo, useState } from "react";
 import { useParams } from "react-router-dom";
 import { useLiveSession } from "../../state/useLiveSession";
+import { useSpeakNewEvents, useVoicePreference } from "../../lib/speech";
 import CorrectionPanel from "./CorrectionPanel";
 
 export default function HostView() {
   const { sessionId } = useParams<{ sessionId: string }>();
   const { session, events, characters, connected, advanceTurn, previousTurn, pauseTurn, resumeTurn, issueCorrection } =
     useLiveSession(sessionId ?? null);
+  const [voiceEnabled, setVoiceEnabled] = useVoicePreference("host", true);
+  useSpeakNewEvents(events, voiceEnabled);
 
   const activeCharacterId = useMemo(() => {
     if (!session || session.currentTurnIndex < 0) return null;
@@ -32,6 +35,13 @@ export default function HostView() {
       <header className="flex items-center justify-between border-b border-parchment/20 px-8 py-4">
         <h1 className="text-3xl font-bold">Round {session.round}</h1>
         <div className="flex items-center gap-4">
+          <button
+            onClick={() => setVoiceEnabled(!voiceEnabled)}
+            title={voiceEnabled ? "Voice narration on -- click to mute" : "Voice narration off -- click to enable"}
+            className="rounded px-2 py-1 text-xl hover:bg-parchment/10"
+          >
+            {voiceEnabled ? "🔊" : "🔇"}
+          </button>
           <span className={`h-3 w-3 rounded-full ${connected ? "bg-green-400" : "bg-red-500"}`} title={connected ? "Connected" : "Disconnected"} />
           <span className="text-lg">
             {session.status === "paused" ? `⏸ Paused${session.pauseReason === "disconnect" ? " (connection lost)" : ""}` : "▶ Live"}

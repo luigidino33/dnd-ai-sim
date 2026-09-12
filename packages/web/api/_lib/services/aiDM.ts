@@ -24,10 +24,19 @@ function systemPrompt(campaign: CampaignRecord): string {
     `- When a roll result is provided, apply the character's modifiers (given to you) and the rules context (given to you) to determine the outcome yourself.`,
     `- Stay strictly consistent with the world bible and prior session log provided below -- don't contradict established facts.`,
     `- Roleplay NPCs/monsters with distinct, consistent personalities.`,
-    `- You MUST call the apply_ruling tool exactly once per response, even for pure narration with no mechanical effect (leave the mechanical fields empty in that case).`,
     `- Keep narration tight and table-paceable -- a few sentences, not a novel -- since 9 players are waiting on turns live.`,
   ].join("\n");
 }
+
+// Only requestRuling forces the apply_ruling tool -- this instruction doesn't
+// belong in the shared systemPrompt() above. It used to live there
+// unconditionally, which meant every other AI call (world-building, round
+// narration, move suggestions) was told to call a tool that wasn't even in
+// its toolset while simultaneously being tool_choice-forced to call a
+// different one -- a contradiction that reliably corrupted their structured
+// output (see the world-building shape-mismatch incidents).
+const RULING_TOOL_INSTRUCTION =
+  "- You MUST call the apply_ruling tool exactly once per response, even for pure narration with no mechanical effect (leave the mechanical fields empty in that case).";
 
 function characterSummary(character: Character): string {
   const hp = character.hitPoints;
@@ -101,7 +110,7 @@ export async function requestRuling(params: RequestRulingParams): Promise<Ruling
   const response = await client.messages.create({
     model: env.aiDmModel,
     max_tokens: 1024,
-    system: systemPrompt(campaign),
+    system: `${systemPrompt(campaign)}\n${RULING_TOOL_INSTRUCTION}`,
     tools: [APPLY_RULING_TOOL],
     tool_choice: { type: "tool", name: APPLY_RULING_TOOL.name },
     messages: [{ role: "user", content: userMessage }],

@@ -59,12 +59,28 @@ export default withApi(async (req: VercelRequest, res: VercelResponse) => {
       // so surface the failure as a visible event too -- otherwise a
       // silent world-building failure looks identical to "still running."
       try {
+        let detail: string;
+        if (err instanceof Error) {
+          detail = err.message;
+        } else if (err && typeof err === "object") {
+          // Some SDK/runtime errors (cross-realm, DOMException-likes) fail
+          // `instanceof Error` but still carry message/name/status -- and
+          // plain JSON.stringify silently drops those since they're often
+          // non-enumerable. Grab everything getOwnPropertyNames can see.
+          try {
+            detail = JSON.stringify(err, Object.getOwnPropertyNames(err));
+          } catch {
+            detail = Object.prototype.toString.call(err);
+          }
+        } else {
+          detail = String(err);
+        }
         await logEvent({
           sessionId: session.id,
           campaignId: auth.campaignId,
           type: "system",
           actorLabel: "system",
-          text: `World-building failed: ${err instanceof Error ? err.message : String(err)}`,
+          text: `World-building failed: ${detail}`,
         });
       } catch {
         // best-effort diagnostic only -- never let logging the failure fail the request

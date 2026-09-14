@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import { useParams } from "react-router-dom";
 import { useLiveSession } from "../../state/useLiveSession";
 import { useSpeakNewEvents, useVoicePreference } from "../../lib/speech";
@@ -10,6 +10,11 @@ export default function HostView() {
     useLiveSession(sessionId ?? null);
   const [voiceEnabled, setVoiceEnabled] = useVoicePreference("host", true);
   useSpeakNewEvents(events, voiceEnabled);
+
+  const narrationEndRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    narrationEndRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
+  }, [events.length]);
 
   const activeCharacterId = useMemo(() => {
     if (!session || session.currentTurnIndex < 0) return null;
@@ -31,8 +36,8 @@ export default function HostView() {
   }
 
   return (
-    <div className="flex min-h-screen flex-col bg-ink text-parchment">
-      <header className="flex items-center justify-between border-b border-parchment/20 px-8 py-4">
+    <div className="flex h-screen flex-col overflow-hidden bg-ink text-parchment">
+      <header className="flex shrink-0 items-center justify-between border-b border-parchment/20 px-8 py-4">
         <h1 className="text-3xl font-bold">Round {session.round}</h1>
         <div className="flex items-center gap-4">
           <button
@@ -49,8 +54,8 @@ export default function HostView() {
         </div>
       </header>
 
-      <div className="grid flex-1 grid-cols-3 gap-6 p-8">
-        <aside className="col-span-1">
+      <div className="grid flex-1 grid-cols-3 gap-6 overflow-hidden p-8">
+        <aside className="col-span-1 min-h-0 overflow-y-auto">
           <h2 className="mb-3 text-xl font-semibold">Turn Queue</h2>
           <ol className="space-y-2">
             {session.turnQueue.map((entry, i) => {
@@ -103,8 +108,8 @@ export default function HostView() {
           )}
         </aside>
 
-        <main className="col-span-2 flex flex-col">
-          <h2 className="mb-3 text-xl font-semibold">
+        <main className="col-span-2 flex min-h-0 flex-col">
+          <h2 className="mb-3 shrink-0 text-xl font-semibold">
             {activeCharacterId ? `${charName(activeCharacterId)}'s turn` : "Waiting to begin"}
             {session.pendingRoll && (
               <span className="ml-3 text-lg font-normal text-ember">-- awaiting roll: {session.pendingRoll.rollPrompt}</span>
@@ -128,6 +133,7 @@ export default function HostView() {
                 {e.text}
               </p>
             ))}
+            <div ref={narrationEndRef} />
           </div>
         </main>
       </div>

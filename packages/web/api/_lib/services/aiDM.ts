@@ -22,6 +22,7 @@ function systemPrompt(campaign: CampaignRecord): string {
     `- Dice are physical: players roll real dice and type in the result. You NEVER invent a die roll. When an action needs a roll you don't have yet, set requiresRoll=true and stop there -- do not resolve the outcome.`,
     `- When a roll result is provided, apply the character's modifiers (given to you) and the rules context (given to you) to determine the outcome yourself.`,
     `- Stay strictly consistent with the world bible and prior session log provided below -- don't contradict established facts.`,
+    `- The acting character's Equipment list (given to you below) is their actual inventory. When they say they use, draw, drink, or otherwise act with an item, check that list: if it's there, let the action proceed and reference the item by name in your narration; if it's clearly not there, call that out in-character instead of silently ignoring or inventing the item.`,
     `- Roleplay NPCs/monsters with distinct, consistent personalities.`,
     `- Keep narration tight and table-paceable -- a few sentences, not a novel -- since 9 players are waiting on turns live.`,
   ].join("\n");
@@ -40,11 +41,25 @@ const RULING_TOOL_INSTRUCTION =
 function characterSummary(character: Character): string {
   const hp = character.hitPoints;
   const conditions = character.conditions?.map((c) => c.name).join(", ") || "none";
-  return [
+  const equipment = character.equipment?.length
+    ? character.equipment.map((item) => `${item.name}${item.quantity > 1 ? ` x${item.quantity}` : ""}${item.notes ? ` (${item.notes})` : ""}`).join(", ")
+    : "none listed";
+
+  const lines = [
     `${character.name} -- Level ${character.level} ${character.race} ${character.class} (${character.background})`,
     `HP: ${hp?.current}/${hp?.max}${hp?.temp ? ` (+${hp.temp} temp)` : ""} | AC: ${character.derived?.armorClass} | Conditions: ${conditions}`,
     `Passive Perception: ${character.derived?.passivePerception} | Initiative bonus: ${character.derived?.initiativeBonus}`,
-  ].join("\n");
+    `Equipment: ${equipment}`,
+  ];
+
+  if (character.spellSlots) {
+    const slots = Object.entries(character.spellSlots)
+      .map(([level, slot]) => `L${level}: ${slot.current}/${slot.max}`)
+      .join(", ");
+    if (slots) lines.push(`Spell slots: ${slots}`);
+  }
+
+  return lines.join("\n");
 }
 
 function eventSummary(event: SessionEvent): string {
